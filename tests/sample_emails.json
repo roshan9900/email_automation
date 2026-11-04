@@ -1,0 +1,72 @@
+[
+  {
+    "scenario_id": "scenario_1",
+    "name": "Scenario 1 – Account Balance Enquiry",
+    "sender": "john.doe@example.com",
+    "subject": "Savings Account Balance Query",
+    "body": "Please provide my savings account balance for account number 1234567890.",
+    "expected_intents": ["ACCOUNT_BALANCE"],
+    "expected_entities": {
+      "account_number": "1234567890"
+    }
+  },
+  {
+    "scenario_id": "scenario_2",
+    "name": "Scenario 2 – Credit Card Usage Enquiry",
+    "sender": "john.doe@example.com",
+    "subject": "Recent Credit Card Transactions",
+    "body": "Please share my last 5 credit card transactions for card 4567XXXX8901.",
+    "expected_intents": ["CREDIT_CARD_USAGE"],
+    "expected_entities": {
+      "card_number": "4567XXXX8901",
+      "transaction_count": 5
+    }
+  },
+  {
+    "scenario_id": "scenario_3",
+    "name": "Scenario 3 – Statement Request",
+    "sender": "john.doe@example.com",
+    "subject": "Bank Statement Request - April 2026",
+    "body": "Kindly send my bank statement for April 2026 for account 1234567890.",
+    "expected_intents": ["STATEMENT_REQUEST"],
+    "expected_entities": {
+      "account_number": "1234567890",
+      "statement_period": "April 2026"
+    }
+  },
+  {
+    "scenario_id": "scenario_4",
+    "name": "Scenario 4 – Multiple Requests in One Email",
+    "sender": "john.doe@example.com",
+    "subject": "Account Balance and Credit Card Statement",
+    "body": "Please share my account balance for account 1234567890 and also send last 3 transactions of my credit card 987654321.",
+    "expected_intents": ["ACCOUNT_BALANCE", "CREDIT_CARD_USAGE"],
+    "expected_entities": {
+      "account_number": "1234567890",
+      "card_number": "987654321",
+      "transaction_count": 3
+    }
+  },
+  {
+    "scenario_id": "scenario_5",
+    "name": "Scenario 5 – Partial Validation Failure",
+    "sender": "john.doe@example.com",
+    "subject": "Account balance and card transactions check",
+    "body": "Please provide balance for account 1234567890 and card transactions for card 999999999.",
+    "expected_intents": ["ACCOUNT_BALANCE", "CREDIT_CARD_USAGE"],
+    "expected_entities": {
+      "account_number": "1234567890",
+      "card_number": "999999999"
+    }
+  },
+  {
+    "scenario_id": "scenario_6_urgent",
+    "name": "Scenario 6 – Urgent Escalation",
+    "sender": "john.doe@example.com",
+    "subject": "URGENT: Unexpected transaction on card",
+    "body": "URGENT: Please immediately check my transactions for card 4567XXXX8901, I suspect fraud!",
+    "expected_intents": ["CREDIT_CARD_USAGE"],
+    "expected_sentiment": "URGENT"
+  }
+]
+

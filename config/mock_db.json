@@ -1,0 +1,80 @@
+{
+  "accounts": {
+    "1234567890": {
+      "account_number": "1234567890",
+      "customer_id": "CUST-1001",
+      "customer_name": "John Doe",
+      "email": "john.doe@example.com",
+      "account_type": "Savings Account",
+      "balance": 125000.0,
+      "currency": "INR",
+      "status": "ACTIVE",
+      "branch": "HDFC Fort Branch, Mumbai",
+      "statements": {
+        "April 2026": {
+          "statement_id": "STMT-202604-1234567890",
+          "period": "April 2026",
+          "start_date": "2026-04-01",
+          "end_date": "2026-04-30",
+          "download_url": "https://netbanking.hdfcbank.com/statements/STMT-202604-1234567890.pdf"
+        },
+        "March 2026": {
+          "statement_id": "STMT-202603-1234567890",
+          "period": "March 2026",
+          "start_date": "2026-03-01",
+          "end_date": "2026-03-31",
+          "download_url": "https://netbanking.hdfcbank.com/statements/STMT-202603-1234567890.pdf"
+        }
+      }
+    },
+    "9876543210": {
+      "account_number": "9876543210",
+      "customer_id": "CUST-1002",
+      "customer_name": "Priya Sharma",
+      "email": "priya.sharma@example.com",
+      "account_type": "Salary Account",
+      "balance": 84500.5,
+      "currency": "INR",
+      "status": "ACTIVE",
+      "branch": "HDFC Koramangala, Bengaluru",
+      "statements": {}
+    }
+  },
+  "credit_cards": {
+    "4567XXXX8901": {
+      "card_number": "4567XXXX8901",
+      "full_card_number": "4567890123458901",
+      "customer_id": "CUST-1001",
+      "customer_name": "John Doe",
+      "card_type": "Regalia Gold Credit Card",
+      "status": "ACTIVE",
+      "credit_limit": 500000.0,
+      "available_limit": 382450.0,
+      "transactions": [
+        {"id": "TXN-901", "date": "2026-05-02", "merchant": "Amazon India", "amount": 4299.0, "type": "DEBIT", "status": "SUCCESS"},
+        {"id": "TXN-902", "date": "2026-05-01", "merchant": "Swiggy", "amount": 650.0, "type": "DEBIT", "status": "SUCCESS"},
+        {"id": "TXN-903", "date": "2026-04-29", "merchant": "Uber India", "amount": 340.0, "type": "DEBIT", "status": "SUCCESS"},
+        {"id": "TXN-904", "date": "2026-04-28", "merchant": "Starbucks Coffee", "amount": 480.0, "type": "DEBIT", "status": "SUCCESS"},
+        {"id": "TXN-905", "date": "2026-04-27", "merchant": "Shell Fuel Station", "amount": 3200.0, "type": "DEBIT", "status": "SUCCESS"},
+        {"id": "TXN-906", "date": "2026-04-25", "merchant": "Zomato", "amount": 520.0, "type": "DEBIT", "status": "SUCCESS"}
+      ]
+    },
+    "987654321": {
+      "card_number": "987654321",
+      "full_card_number": "5241987654321000",
+      "customer_id": "CUST-1001",
+      "customer_name": "John Doe",
+      "card_type": "Millennia Credit Card",
+      "status": "ACTIVE",
+      "credit_limit": 250000.0,
+      "available_limit": 194200.0,
+      "transactions": [
+        {"id": "TXN-321", "date": "2026-05-03", "merchant": "Reliance Digital", "amount": 12499.0, "type": "DEBIT", "status": "SUCCESS"},
+        {"id": "TXN-322", "date": "2026-05-02", "merchant": "Blinkit", "amount": 890.0, "type": "DEBIT", "status": "SUCCESS"},
+        {"id": "TXN-323", "date": "2026-04-30", "merchant": "Apollo Pharmacy", "amount": 1150.0, "type": "DEBIT", "status": "SUCCESS"},
+        {"id": "TXN-324", "date": "2026-04-28", "merchant": "BookMyShow", "amount": 900.0, "type": "DEBIT", "status": "SUCCESS"}
+      ]
+    }
+  }
+}
+
