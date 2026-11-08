@@ -30,3 +30,4 @@ jobs:
       - name: Run Banking Scenarios Test Suite (11 Scenarios)
         run: |
           python -m unittest tests/test_scenarios.py -v
+
