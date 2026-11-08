@@ -101,3 +101,82 @@
   }
   ```
 
+---
+
+## 6. Model Context Protocol (MCP) Endpoints
+
+The server exposes MCP-compliant tools and JSON schemas:
+
+### 6.1 `GET /mcp/tools`
+Returns the manifest of available MCP banking tools and their input schemas:
+```json
+{
+  "tools": [
+    {
+      "name": "ValidateAccountAPI",
+      "description": "Validates whether the customer account number is active and authorized.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account_number": { "type": "string" }
+        },
+        "required": ["account_number"]
+      }
+    },
+    {
+      "name": "ValidateCardAPI",
+      "description": "Validates whether the credit card is active and unblocked."
+    },
+    {
+      "name": "GetAccountBalanceAPI",
+      "description": "Retrieves the current available and ledger balance for an account."
+    },
+    {
+      "name": "GetCardTransactionsAPI",
+      "description": "Retrieves recent credit card transactions with date, merchant, and amount."
+    },
+    {
+      "name": "GetStatementAPI",
+      "description": "Generates a certified statement download reference for a specific period."
+    }
+  ]
+}
+```
+
+### 6.2 `POST /mcp/execute`
+Executes an MCP tool dynamically:
+- **Request**:
+  ```json
+  {
+    "tool_name": "GetAccountBalanceAPI",
+    "arguments": {
+      "account_number": "1234567890"
+    }
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "status": "SUCCESS",
+    "account_number": "1234567890",
+    "balance": 125000.0,
+    "currency": "INR",
+    "account_type": "Savings Account"
+  }
+  ```
+
+---
+
+## 7. HTTP REST API Endpoints (`main.py --serve`)
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/dashboard` | `GET` | Interactive Visual Agentic Monitoring Dashboard |
+| `/health` | `GET` | Health status, provider name, and target model |
+| `/api/ollama/status` | `GET` | Live probe checking local Ollama connectivity and installed models |
+| `/email/process` | `POST` | Ingests customer email and executes the full 7-agent workflow |
+| `/hitl/queue` | `GET` | Returns list of flagged customer emails awaiting supervisor review |
+| `/hitl/approve/{id}` | `POST` | Supervisor approval to release a flagged email response |
+| `/docs` | `GET` | Interactive Swagger OpenAPI documentation |
+
+

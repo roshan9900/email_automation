@@ -3,6 +3,8 @@ import uuid
 from typing import Optional
 from models.schemas import EmailInput, FinalEmailResponse
 from workflows.state import WorkflowState
+from workflows.hitl_manager import hitl_manager, HITLReviewItem
+from utils.policy_rag import policy_rag
 from agents.email_understanding_agent import EmailUnderstandingAgent
 from agents.intent_sentiment_agent import IntentSentimentAgent
 from agents.entity_extraction_agent import EntityExtractionAgent
@@ -14,7 +16,7 @@ from agents.audit_agent import AuditLoggingAgent
 class BankingEmailOrchestrator:
     """
     Main Agentic Workflow Orchestrator coordinating all 7 agents in sequence,
-    managing state transitions, ensuring data privacy and audit compliance.
+    integrating RAG policy lookups, HITL risk governance, and audit compliance.
     """
     def __init__(self):
         self.email_agent = EmailUnderstandingAgent()
@@ -40,6 +42,8 @@ class BankingEmailOrchestrator:
             understanding_res = self.email_agent.process(email_input)
             state.email_cleaned_text = understanding_res["clean_body"]
             state.attachment_content = understanding_res["attachment_text"]
+            state.detected_language = understanding_res.get("language", "English")
+            state.is_multilingual = understanding_res.get("is_multilingual", False)
             combined_text = understanding_res["combined_content"]
 
             # Step 2: Intent Detection & Sentiment Analysis
@@ -55,7 +59,12 @@ class BankingEmailOrchestrator:
             validation_res = self.validation_agent.process(entities)
             state.validation_results = validation_res
 
-            # Step 5: API Decision Engine (Plan & Execute via MCP tools)
+            # Step 5: Optional RAG Banking Policy Retrieval
+            matching_policies = policy_rag.search(combined_text, top_k=1)
+            top_policy = matching_policies[0] if matching_policies else None
+            state.policy_lookup = top_policy
+
+            # Step 6: API Decision Engine (Plan & Execute via MCP tools)
             exec_res = self.api_decision_agent.plan_and_execute(
                 intent_result=intent_res,
                 entities=entities,
@@ -64,7 +73,7 @@ class BankingEmailOrchestrator:
             state.api_execution_plan = exec_res["execution_plan"]
             state.api_results = exec_res["api_results"]
 
-            # Step 6: Response Generation
+            # Step 7: Response Generation with Policy Guidance
             cust_name = ""
             if validation_res.get("account_validation") and validation_res["account_validation"].customer_name:
                 cust_name = validation_res["account_validation"].customer_name
@@ -77,8 +86,43 @@ class BankingEmailOrchestrator:
                 sentiment_res=sentiment_res,
                 entities=entities,
                 validation_results=validation_res,
-                api_results=exec_res["api_results"]
+                api_results=exec_res["api_results"],
+                policy_info=top_policy
             )
+
+            # Step 8: Human-In-The-Loop (HITL) Risk & Approval Evaluation
+            entities_present = bool(entities.account_number or entities.card_number)
+            requires_hitl, risk_reasons = hitl_manager.evaluate_risk(
+                sentiment=sentiment_res.sentiment,
+                is_urgent=sentiment_res.is_urgent,
+                has_partial_failure=final_email.has_partial_failure,
+                confidence_score=final_email.confidence_score,
+                entities_found=entities_present
+            )
+
+            final_email.requires_human_approval = requires_hitl
+            final_email.risk_reasons = risk_reasons
+            final_email.approval_status = "PENDING_APPROVAL" if requires_hitl else "AUTO_APPROVED"
+
+            state.confidence_score = final_email.confidence_score
+            state.requires_human_approval = requires_hitl
+            state.approval_status = final_email.approval_status
+            state.risk_reasons = risk_reasons
+
+            if requires_hitl:
+                hitl_item = HITLReviewItem(
+                    session_id=session_id,
+                    email_id=email_input.email_id or "EMAIL-001",
+                    sender=email_input.sender,
+                    subject=email_input.subject,
+                    incoming_body=email_input.body,
+                    draft_response=final_email.full_email_body,
+                    confidence_score=final_email.confidence_score,
+                    risk_reasons=risk_reasons,
+                    status="PENDING_APPROVAL"
+                )
+                hitl_manager.add_to_queue(hitl_item)
+
             state.final_response = final_email
             state.status = "SUCCESS"
 
@@ -91,7 +135,9 @@ class BankingEmailOrchestrator:
                 subject="HDFC Bank - Service Notification",
                 greeting="Dear Customer,",
                 full_email_body="We experienced an unexpected issue processing your request. Our support team has been notified.",
-                has_partial_failure=True
+                has_partial_failure=True,
+                approval_status="ERROR_REVIEW",
+                requires_human_approval=True
             )
 
         total_latency = (time.time() - start_overall) * 1000
@@ -106,9 +152,10 @@ class BankingEmailOrchestrator:
                 "intents": [i.value for i in state.intent_result.intents] if state.intent_result else [],
                 "sentiment": state.sentiment_result.sentiment.value if state.sentiment_result else "UNKNOWN",
                 "total_latency_ms": state.total_latency_ms,
-                "has_partial_failure": state.final_response.has_partial_failure if state.final_response else False
+                "has_partial_failure": state.final_response.has_partial_failure if state.final_response else False,
+                "approval_status": state.approval_status,
+                "risk_reasons": state.risk_reasons
             }
         )
 
         return state
-

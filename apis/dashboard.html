@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HDFC Bank - Agentic Email Automation Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --hdfc-blue: #004c8f; --hdfc-red: #ed1c24; }
+    .bg-hdfc-blue { background-color: var(--hdfc-blue); }
+    .text-hdfc-blue { color: var(--hdfc-blue); }
+    .border-hdfc-blue { border-color: var(--hdfc-blue); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
+
+  <!-- Top Header -->
+  <header class="bg-hdfc-blue text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center font-bold text-hdfc-blue text-xl shadow">H</div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">HDFC BANK</h1>
+          <p class="text-xs text-blue-200">Intelligent Email Automation & MCP Response System</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4 text-xs">
+        <span id="ollama-status-badge" class="px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-400 rounded-full flex items-center gap-1.5">
+          <span id="ollama-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="ollama-status-text">Checking Ollama...</span>
+        </span>
+        <span class="px-3 py-1 bg-blue-800 rounded-md text-blue-100">MCP Core Banking Ready</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8 space-y-6">
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold text-slate-500 uppercase">Agents in Graph</div>
+        <div class="text-2xl font-bold text-slate-800 mt-1">7 Specialized</div>
+        <div class="text-xs text-emerald-600 mt-1 font-medium">100% Autonomous Pipeline</div>
+      </div>
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold text-slate-500 uppercase">Average Latency</div>
+        <div class="text-2xl font-bold text-slate-800 mt-1" id="kpi-latency">~28 ms (Hybrid)</div>
+        <div class="text-xs text-blue-600 mt-1 font-medium">SLA Compliant (&lt;500ms)</div>
+      </div>
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold text-slate-500 uppercase">Security Masking</div>
+        <div class="text-2xl font-bold text-emerald-600 mt-1">PCI-DSS / RBI</div>
+        <div class="text-xs text-slate-500 mt-1">Masked Account &amp; Card (XXXX7890)</div>
+      </div>
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold text-slate-500 uppercase">HITL Governance</div>
+        <div class="text-2xl font-bold text-amber-600 mt-1" id="kpi-hitl">Active</div>
+        <div class="text-xs text-slate-500 mt-1">Human Approval for Risk &gt; Threshold</div>
+      </div>
+    </div>
+
+    <!-- Interactive Testing Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left Input Panel -->
+      <div class="lg:col-span-5 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <h2 class="text-lg font-bold text-slate-800 flex items-center justify-between">
+          <span>Incoming Customer Email</span>
+          <span class="text-xs font-normal text-slate-500">Select scenario or enter custom</span>
+        </h2>
+
+        <!-- Preset Buttons -->
+        <div class="flex flex-wrap gap-2 text-xs">
+          <button onclick="loadScenario(1)" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-medium rounded border border-slate-300">Scenario 1 (Balance)</button>
+          <button onclick="loadScenario(2)" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-medium rounded border border-slate-300">Scenario 2 (Card)</button>
+          <button onclick="loadScenario(3)" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-medium rounded border border-slate-300">Scenario 3 (Statement)</button>
+          <button onclick="loadScenario(4)" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-medium rounded border border-slate-300">Scenario 4 (Multi-Intent)</button>
+          <button onclick="loadScenario(5)" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-medium rounded border border-slate-300">Scenario 5 (Partial Fail)</button>
+          <button onclick="loadScenario(6)" class="px-2.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 font-medium rounded border border-rose-300">Scenario 6 (Urgent/Fraud)</button>
+        </div>
+
+        <div class="space-y-3 pt-2">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Customer Sender Email</label>
+            <input id="inp-sender" type="email" value="john.doe@example.com" class="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Subject Line</label>
+            <input id="inp-subject" type="text" value="Savings Account Balance Query" class="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Email Body</label>
+            <textarea id="inp-body" rows="5" class="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none">Please provide my savings account balance for account number 1234567890.</textarea>
+          </div>
+        </div>
+
+        <button onclick="processEmail()" id="btn-process" class="w-full bg-hdfc-blue hover:bg-blue-800 text-white font-semibold py-3 rounded-lg shadow transition flex items-center justify-center space-x-2">
+          <span id="btn-text">Execute Agentic Workflow</span>
+          <span id="btn-spinner" class="hidden animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+        </button>
+      </div>
+
+      <!-- Right Result Panel -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- Agent Pipeline Trace -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <h2 class="text-lg font-bold text-slate-800 flex items-center justify-between">
+            <span>Agent Orchestration Trace</span>
+            <span id="badge-status" class="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full font-medium">Ready</span>
+          </h2>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <span class="text-slate-500 block">Detected Intents</span>
+              <span id="res-intents" class="font-semibold text-slate-800">-</span>
+            </div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <span class="text-slate-500 block">Sentiment Tone</span>
+              <span id="res-sentiment" class="font-semibold text-slate-800">-</span>
+            </div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <span class="text-slate-500 block">Extracted Entities</span>
+              <span id="res-entities" class="font-semibold text-slate-800">-</span>
+            </div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <span class="text-slate-500 block">Confidence &amp; Risk</span>
+              <span id="res-confidence" class="font-semibold text-slate-800">-</span>
+            </div>
+          </div>
+
+          <!-- Human Approval Banner if Triggered -->
+          <div id="hitl-banner" class="hidden p-3 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg text-xs space-y-1">
+            <div class="font-bold flex items-center gap-1.5 text-amber-900">
+              <svg class="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-2h2v2zm0-4H9V5h2v4z"/></svg>
+              Human-in-the-Loop Approval Required
+            </div>
+            <div id="hitl-reason" class="text-slate-700"></div>
+          </div>
+        </div>
+
+        <!-- Generated Customer Response Email -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex items-center justify-between border-b pb-3">
+            <h2 class="text-lg font-bold text-slate-800">Generated Customer Response Email</h2>
+            <span class="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">PII / PCI Masked</span>
+          </div>
+
+          <pre id="res-email-body" class="p-4 bg-slate-900 text-slate-100 rounded-lg font-mono text-xs whitespace-pre-wrap leading-relaxed min-h-[160px] overflow-x-auto">Click "Execute Agentic Workflow" to process an enquiry.</pre>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    const scenarios = {
+      1: {
+        subject: "Savings Account Balance Query",
+        body: "Please provide my savings account balance for account number 1234567890."
+      },
+      2: {
+        subject: "Recent Credit Card Transactions",
+        body: "Please share my last 5 credit card transactions for card 4567XXXX8901."
+      },
+      3: {
+        subject: "Bank Statement Request - April 2026",
+        body: "Kindly send my bank statement for April 2026 for account 1234567890."
+      },
+      4: {
+        subject: "Account Balance and Credit Card Statement",
+        body: "Please share my account balance for account 1234567890 and also send last 3 transactions of my credit card 987654321."
+      },
+      5: {
+        subject: "Account balance and card transactions check",
+        body: "Please provide balance for account 1234567890 and card transactions for card 999999999."
+      },
+      6: {
+        subject: "URGENT: Unexpected transaction on card",
+        body: "URGENT: Please immediately check my transactions for card 4567XXXX8901, I suspect fraud!"
+      }
+    };
+
+    function loadScenario(num) {
+      const s = scenarios[num];
+      document.getElementById("inp-subject").value = s.subject;
+      document.getElementById("inp-body").value = s.body;
+    }
+
+    async function processEmail() {
+      const sender = document.getElementById("inp-sender").value;
+      const subject = document.getElementById("inp-subject").value;
+      const body = document.getElementById("inp-body").value;
+
+      const btn = document.getElementById("btn-process");
+      const btnText = document.getElementById("btn-text");
+      const btnSpinner = document.getElementById("btn-spinner");
+
+      btn.disabled = true;
+      btnText.innerText = "Processing Agents...";
+      btnSpinner.classList.remove("hidden");
+
+      try {
+        const resp = await fetch("/email/process", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            email_id: "DASHBOARD-" + Date.now().toString().slice(-4),
+            sender: sender,
+            subject: subject,
+            body: body
+          })
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          throw new Error(data.detail || "Server returned status " + resp.status);
+        }
+
+        // Update Trace UI
+        document.getElementById("badge-status").innerText = "Completed (" + data.total_latency_ms + " ms)";
+        document.getElementById("badge-status").className = "text-xs px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-medium";
+
+        document.getElementById("kpi-latency").innerText = data.total_latency_ms + " ms";
+
+        const intents = (data.intent_result && data.intent_result.intents) || [];
+        document.getElementById("res-intents").innerText = intents.join(", ") || "None";
+
+        const sent = (data.sentiment_result && data.sentiment_result.sentiment) || "NEUTRAL";
+        const isUrgent = data.sentiment_result && data.sentiment_result.is_urgent;
+        document.getElementById("res-sentiment").innerText = sent + (isUrgent ? " (URGENT)" : "");
+
+        const ent = data.extracted_entities || {};
+        let entList = [];
+        if (ent.account_number) entList.push("Acc: " + ent.account_number);
+        if (ent.card_number) entList.push("Card: " + ent.card_number);
+        if (ent.statement_period) entList.push("Period: " + ent.statement_period);
+        document.getElementById("res-entities").innerText = entList.join(" | ") || "None";
+
+        const conf = data.confidence_score || (data.final_response && data.final_response.confidence_score) || 0.95;
+        document.getElementById("res-confidence").innerText = (conf * 100).toFixed(0) + "% (" + data.approval_status + ")";
+
+        // HITL banner
+        const hitlBanner = document.getElementById("hitl-banner");
+        if (data.requires_human_approval) {
+          hitlBanner.classList.remove("hidden");
+          document.getElementById("hitl-reason").innerText = "Reasons: " + (data.risk_reasons || []).join("; ");
+        } else {
+          hitlBanner.classList.add("hidden");
+        }
+
+        // Email Output
+        const emailText = data.final_response ? data.final_response.full_email_body : "No response generated.";
+        document.getElementById("res-email-body").innerText = emailText;
+
+      } catch (err) {
+        alert("Workflow Error: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btnText.innerText = "Execute Agentic Workflow";
+        btnSpinner.classList.add("hidden");
+      }
+    }
+
+    async function checkOllamaStatus() {
+      try {
+        const resp = await fetch("/api/ollama/status");
+        const status = await resp.json();
+        const badge = document.getElementById("ollama-status-badge");
+        const dot = document.getElementById("ollama-status-dot");
+        const text = document.getElementById("ollama-status-text");
+
+        if (status.online) {
+          badge.className = "px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-400 rounded-full flex items-center gap-1.5";
+          dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+          text.innerText = "Ollama (" + (status.target_model || "llama3") + ") Ready";
+        } else {
+          badge.className = "px-3 py-1 bg-rose-500/20 text-rose-300 border border-rose-400 rounded-full flex items-center gap-1.5";
+          dot.className = "w-2 h-2 rounded-full bg-rose-400";
+          text.innerText = "Ollama Offline: Run 'ollama serve'";
+        }
+      } catch (e) {
+        // Backend or status endpoint loading
+      }
+    }
+
+    // Check Ollama status on page load and periodically
+    checkOllamaStatus();
+    setInterval(checkOllamaStatus, 6000);
+  </script>
+</body>
+</html>
+

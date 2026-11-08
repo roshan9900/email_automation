@@ -1,3 +1,4 @@
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -12,6 +13,20 @@ from workflows.orchestrator import BankingEmailOrchestrator
 from apis.mock_core_banking import banking_service
 
 class TestBankingEmailScenarios(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # In unit tests, use fast deterministic hybrid SLM provider
+        # to verify all banking logic, schemas, APIs and agents instantly (< 2s)
+        cls._prev_provider = os.environ.get("LLM_PROVIDER")
+        os.environ["LLM_PROVIDER"] = "hybrid"
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls._prev_provider is not None:
+            os.environ["LLM_PROVIDER"] = cls._prev_provider
+        else:
+            os.environ.pop("LLM_PROVIDER", None)
+
     def setUp(self):
         self.orchestrator = BankingEmailOrchestrator()
 
@@ -155,6 +170,92 @@ class TestBankingEmailScenarios(unittest.TestCase):
         self.assertTrue(state.sentiment_result.is_urgent)
         self.assertIn(state.final_response.sentiment_applied, [SentimentType.URGENT, SentimentType.NEGATIVE])
         self.assertIn("prioritized your request", state.final_response.full_email_body)
+
+    def test_scenario_7_attachment_ocr(self):
+        """
+        Scenario 7 – OCR Attachment Processing (Section 13 Optional Enhancement)
+        """
+        pdf_path = CURRENT_DIR / "tests" / "test_cheque_attachment.pdf"
+        email = EmailInput(
+            email_id="TEST-SCENARIO-7-OCR",
+            sender="john.doe@example.com",
+            subject="Attached Cheque Record Query",
+            body="Please see my attached document and share my account balance.",
+            attachment_paths=[str(pdf_path)]
+        )
+        state = self.orchestrator.process_email(email)
+        
+        self.assertEqual(state.status, "SUCCESS")
+        self.assertTrue(len(state.attachment_content) > 0)
+        self.assertIn("1234567890", state.attachment_content)
+        self.assertEqual(state.extracted_entities.account_number, "1234567890")
+        self.assertEqual(state.validation_results["account_validation"].status, ValidationStatus.VALID)
+
+    def test_scenario_8_rag_policy_and_hitl(self):
+        """
+        Scenario 8 – RAG Policy Knowledge Lookup & Human-in-the-Loop Risk Flagging
+        """
+        email = EmailInput(
+            email_id="TEST-SCENARIO-8-HITL",
+            sender="john.doe@example.com",
+            subject="Urgent Fraud Question",
+            body="URGENT: Someone made an unauthorized transaction on my card 4567XXXX8901. What is your liability policy?"
+        )
+        state = self.orchestrator.process_email(email)
+        
+        self.assertEqual(state.status, "SUCCESS")
+        # HITL Flagged
+        self.assertTrue(state.requires_human_approval)
+        self.assertEqual(state.approval_status, "PENDING_APPROVAL")
+        # RAG Policy Enriched
+        self.assertIsNotNone(state.policy_lookup)
+        self.assertIn("Zero Liability", state.policy_lookup["topic"])
+        self.assertIn("Zero Liability", state.final_response.full_email_body)
+
+    def test_scenario_9_ollama_provider_check(self):
+        """
+        Scenario 9 – Tests Ollama LLM provider structure and diagnostic health probe
+        """
+        from models.llm_provider import OllamaLLMProvider
+        provider = OllamaLLMProvider()
+        conn = provider.check_connection()
+        self.assertIn("online", conn)
+        self.assertIn("target_model", conn)
+
+    def test_scenario_10_multilingual_support(self):
+        """
+        Scenario 10 – Multi-Language Enquiry Support (Section 13 Optional Enhancement)
+        Customer writes in Hindi / Hinglish: 'Namaste, kripya mera savings account balance bataye for 1234567890.'
+        """
+        email = EmailInput(
+            email_id="TEST-SCENARIO-10-LANG",
+            sender="rohit.sharma@example.com",
+            subject="Khata Balance Jaankari",
+            body="Namaste, kripya mera savings account balance bataye for account number 1234567890. Dhanyawad."
+        )
+        state = self.orchestrator.process_email(email)
+        self.assertEqual(state.status, "SUCCESS")
+        self.assertTrue(state.is_multilingual)
+        self.assertIn("Hindi", state.detected_language)
+        self.assertEqual(state.extracted_entities.account_number, "1234567890")
+        self.assertEqual(state.api_results["ACCOUNT_BALANCE"]["balance"], 125000.0)
+
+    def test_scenario_11_omnichannel_voice_ivr(self):
+        """
+        Scenario 11 – Omnichannel Voice / IVR Call Simulation (Section 13 Optional Enhancement)
+        Customer calls Phone Banking IVR and asks for account balance via voice.
+        """
+        from utils.omnichannel_adapter import OmnichannelAdapter
+        adapter = OmnichannelAdapter(orchestrator=self.orchestrator)
+        transcript = "Hi, I am calling to check my savings account balance for account 1234567890."
+        res = adapter.process_voice_call(
+            voice_transcript=transcript,
+            caller_phone="+91-9876543210",
+            registered_email="john.doe@example.com"
+        )
+        self.assertEqual(res["channel"], "OMNICHANNEL_VOICE_IVR")
+        self.assertIn("Rupees 125,000", res["ivr_voice_script"])
+        self.assertIn("XXXX7890", res["email_response_body"])
 
 if __name__ == "__main__":
     unittest.main()

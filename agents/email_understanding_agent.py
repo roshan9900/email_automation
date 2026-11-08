@@ -3,6 +3,7 @@ import re
 from typing import Dict, Any
 from models.schemas import EmailInput
 from utils.ocr_reader import extract_text_from_attachment
+from utils.language_detector import detect_language
 from utils.logger import log_audit_event
 
 class EmailUnderstandingAgent:
@@ -33,12 +34,18 @@ class EmailUnderstandingAgent:
         if attachment_texts:
             combined_text += "\n\n[Attachment Content]:\n" + "\n".join(attachment_texts)
 
+        # 3. Detect language (Section 4.1 & 13)
+        lang_info = detect_language(clean_body)
+
         elapsed = (time.time() - start_time) * 1000
         result = {
             "clean_body": clean_body,
             "attachment_text": "\n".join(attachment_texts),
             "combined_content": combined_text,
-            "has_attachments": len(email_input.attachment_paths) > 0
+            "has_attachments": len(email_input.attachment_paths) > 0,
+            "language": lang_info["language"],
+            "language_code": lang_info["code"],
+            "is_multilingual": lang_info["is_multilingual"]
         }
         
         log_audit_event(

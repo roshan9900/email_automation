@@ -2,15 +2,189 @@ import os
 import re
 import json
 import logging
-from typing import Dict, Any, Optional, List
-from config.settings import LLM_PROVIDER, GROQ_API_KEY, OLLAMA_BASE_URL, DEFAULT_MODEL
+import urllib.request
+import urllib.error
+import urllib.parse
+from typing import Dict, Any, Optional, List, Tuple
+from config.settings import (
+    LLM_PROVIDER,
+    OLLAMA_BASE_URL,
+    OLLAMA_MODEL,
+    OLLAMA_TIMEOUT,
+    DEFAULT_MODEL,
+    GROQ_API_KEY
+)
 from models.schemas import IntentType, SentimentType
 
 logger = logging.getLogger("EmailAutomationAudit")
 
+def clean_json_response(raw_text: str) -> str:
+    """
+    Cleans LLM response text, stripping markdown code blocks, backticks,
+    and conversational wrappers to isolate pure valid JSON.
+    """
+    text = raw_text.strip()
+    
+    # 1. Match code fences ```json ... ``` or ``` ... ```
+    fence_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
+    if fence_match:
+        text = fence_match.group(1).strip()
+
+    # 2. Extract balanced outer JSON object {...} or list [...]
+    json_match = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", text)
+    if json_match:
+        text = json_match.group(1).strip()
+
+    return text
+
 class BaseLLMProvider:
     def complete(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         raise NotImplementedError
+
+class OllamaLLMProvider(BaseLLMProvider):
+    """
+    Local LLM Provider powered exclusively by Ollama (LLaMA 3).
+    Dispatches directly to Ollama REST API endpoints without socket blocking.
+    """
+    def __init__(self, base_url: str = OLLAMA_BASE_URL, model: str = OLLAMA_MODEL, timeout: int = OLLAMA_TIMEOUT):
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.timeout = timeout
+        self.fallback = HybridSLMProvider()
+
+    def check_connection(self) -> Dict[str, Any]:
+        """
+        Queries Ollama API tags to check service health and available local models.
+        """
+        tags_url = f"{self.base_url}/api/tags"
+        try:
+            req = urllib.request.Request(tags_url, headers={"User-Agent": "HDFC-Email-Agent/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode("utf-8"))
+                    models = [m.get("name") for m in data.get("models", [])]
+                    has_model = any(self.model in m for m in models)
+                    return {
+                        "online": True,
+                        "base_url": self.base_url,
+                        "installed_models": models,
+                        "target_model": self.model,
+                        "model_ready": has_model
+                    }
+        except Exception as e:
+            return {
+                "online": False,
+                "base_url": self.base_url,
+                "target_model": self.model,
+                "error": str(e)
+            }
+        return {"online": False, "base_url": self.base_url, "target_model": self.model}
+
+    def complete(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """
+        Executes inference directly on local Ollama instance.
+        """
+        is_json = "json" in prompt.lower() or (system_prompt and "json" in system_prompt.lower())
+
+        # Attempt 1: Ollama Chat API (/api/chat)
+        chat_url = f"{self.base_url}/api/chat"
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        payload: Dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+                "num_predict": 512
+            }
+        }
+        if is_json:
+            payload["format"] = "json"
+
+        try:
+            data_bytes = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                chat_url,
+                data=data_bytes,
+                headers={"Content-Type": "application/json", "User-Agent": "HDFC-Email-Agent/1.0"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                resp_json = json.loads(resp.read().decode("utf-8"))
+                content = resp_json.get("message", {}).get("content", "")
+                if is_json:
+                    return clean_json_response(content)
+                return content
+        except Exception as chat_err:
+            err_str = str(chat_err)
+            if "10061" in err_str or "actively refused" in err_str:
+                msg = (
+                    f"Ollama daemon is offline at {self.base_url} (Connection Refused). "
+                    f"Please launch Ollama by running 'ollama serve' in PowerShell or launching the Ollama desktop app."
+                )
+                logger.error(f"[Ollama Offline] {msg}")
+                strict = os.getenv("OLLAMA_STRICT", "false").lower() in ["true", "1", "yes"]
+                if strict:
+                    raise ConnectionRefusedError(msg)
+                logger.warning("[Ollama Fallback] Falling back to local banking rule engine.")
+                return self.fallback.complete(prompt, system_prompt)
+            logger.info(f"[Ollama] Chat API attempt notice: {chat_err}. Trying /api/generate...")
+
+        # Attempt 2: Ollama Generate API (/api/generate)
+        try:
+            gen_url = f"{self.base_url}/api/generate"
+            gen_payload = {
+                "model": self.model,
+                "prompt": f"{system_prompt}\n\n{prompt}" if system_prompt else prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.1,
+                    "num_predict": 512
+                }
+            }
+            if is_json:
+                gen_payload["format"] = "json"
+
+            gen_req = urllib.request.Request(
+                gen_url,
+                data=json.dumps(gen_payload).encode("utf-8"),
+                headers={"Content-Type": "application/json", "User-Agent": "HDFC-Email-Agent/1.0"},
+                method="POST"
+            )
+            with urllib.request.urlopen(gen_req, timeout=self.timeout) as gen_resp:
+                gen_data = json.loads(gen_resp.read().decode("utf-8"))
+                content = gen_data.get("response", "")
+                if is_json:
+                    return clean_json_response(content)
+                return content
+        except Exception as gen_err:
+            err_str = str(gen_err)
+            if "10061" in err_str or "actively refused" in err_str:
+                msg = (
+                    f"Ollama daemon is offline at {self.base_url} (Connection Refused). "
+                    f"Please launch Ollama by running 'ollama serve' in PowerShell or launching the Ollama desktop app."
+                )
+                logger.error(f"[Ollama Offline] {msg}")
+                strict = os.getenv("OLLAMA_STRICT", "false").lower() in ["true", "1", "yes"]
+                if strict:
+                    raise ConnectionRefusedError(msg)
+                logger.warning("[Ollama Fallback] Falling back to local banking rule engine.")
+                return self.fallback.complete(prompt, system_prompt)
+
+            logger.error(
+                f"[Ollama Error] Direct call to Ollama ({self.base_url}, model={self.model}) failed: {gen_err}."
+            )
+            # Check strict mode
+            strict = os.getenv("OLLAMA_STRICT", "false").lower() in ["true", "1", "yes"]
+            if strict:
+                raise RuntimeError(f"Ollama local model failure: {gen_err}")
+            
+            logger.warning("[Ollama Fallback] Falling back to local banking rule engine.")
+            return self.fallback.complete(prompt, system_prompt)
 
 class GroqLLMProvider(BaseLLMProvider):
     def __init__(self, api_key: str, model: str = DEFAULT_MODEL):
@@ -18,11 +192,6 @@ class GroqLLMProvider(BaseLLMProvider):
         self.model = model
 
     def complete(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        import requests
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -32,34 +201,27 @@ class GroqLLMProvider(BaseLLMProvider):
             "model": self.model,
             "messages": messages,
             "temperature": 0.1,
-            "response_format": {"type": "json_object"} if "JSON" in prompt else None
+            "response_format": {"type": "json_object"} if "json" in prompt.lower() else None
         }
-        resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=20)
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
-
-class OllamaLLMProvider(BaseLLMProvider):
-    def __init__(self, base_url: str = OLLAMA_BASE_URL, model: str = "llama3"):
-        self.base_url = base_url
-        self.model = model
-
-    def complete(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        import requests
-        payload = {
-            "model": self.model,
-            "prompt": f"{system_prompt}\n\n{prompt}" if system_prompt else prompt,
-            "stream": False,
-            "format": "json" if "JSON" in prompt else ""
-        }
-        resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=30)
-        resp.raise_for_status()
-        return resp.json().get("response", "")
+        data_bytes = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.groq.com/openai/v1/chat/completions",
+            data=data_bytes,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data["choices"][0]["message"]["content"]
 
 class HybridSLMProvider(BaseLLMProvider):
     """
     Deterministic rule-guided Small Language Model / NLP engine for Banking.
     Guarantees 100% reliable execution out-of-the-box for all 5 HDFC Bank scenarios
-    even when running offline without external cloud API keys.
+    during unit test suites and offline mock evaluation.
     """
     def complete(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         text = prompt.lower()
@@ -101,7 +263,6 @@ class HybridSLMProvider(BaseLLMProvider):
             acc_match = re.search(r"account\s*(?:number|no\.?|#)?\s*:?\s*(\d{8,16})", prompt, re.IGNORECASE)
             account_number = acc_match.group(1) if acc_match else None
             if not account_number:
-                # Standalone 10 digit number
                 digits_10 = re.findall(r"\b\d{10}\b", prompt)
                 if digits_10:
                     account_number = digits_10[0]
@@ -141,14 +302,19 @@ class HybridSLMProvider(BaseLLMProvider):
         return prompt
 
 def get_llm_provider() -> BaseLLMProvider:
-    if LLM_PROVIDER == "groq" and GROQ_API_KEY:
+    """
+    Returns the configured LLM provider. Checks environment variable first, defaults to local Ollama.
+    """
+    provider = os.getenv("LLM_PROVIDER", LLM_PROVIDER).lower().strip()
+    if provider == "hybrid":
+        return HybridSLMProvider()
+    elif provider == "ollama":
+        return OllamaLLMProvider()
+    elif provider == "groq" and GROQ_API_KEY:
         try:
             return GroqLLMProvider(api_key=GROQ_API_KEY)
         except Exception:
             pass
-    elif LLM_PROVIDER == "ollama":
-        try:
-            return OllamaLLMProvider()
-        except Exception:
-            pass
-    return HybridSLMProvider()
+
+    # Default to Ollama provider
+    return OllamaLLMProvider()

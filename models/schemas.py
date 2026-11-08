@@ -113,4 +113,9 @@ class FinalEmailResponse(BaseModel):
     has_partial_failure: bool = False
     sentiment_applied: SentimentType = SentimentType.NEUTRAL
     disclaimer: str = ""
+    confidence_score: float = 0.95
+    requires_human_approval: bool = False
+    approval_status: str = "AUTO_APPROVED"
+    risk_reasons: List[str] = Field(default_factory=list)
+    policy_lookup_info: Optional[str] = None
 

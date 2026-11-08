@@ -67,6 +67,23 @@
     "body": "URGENT: Please immediately check my transactions for card 4567XXXX8901, I suspect fraud!",
     "expected_intents": ["CREDIT_CARD_USAGE"],
     "expected_sentiment": "URGENT"
+  },
+  {
+    "scenario_id": "scenario_7_ocr",
+    "name": "Scenario 7 – OCR Attachment Reading (Section 13)",
+    "sender": "john.doe@example.com",
+    "subject": "Attached Cheque Record Query",
+    "body": "Please see my attached document and share my account balance.",
+    "attachment_paths": ["tests/test_cheque_attachment.pdf"],
+    "expected_intents": ["ACCOUNT_BALANCE"]
+  },
+  {
+    "scenario_id": "scenario_8_multilingual",
+    "name": "Scenario 8 – Multilingual Hindi / Hinglish Support (Section 13)",
+    "sender": "rohit.sharma@example.com",
+    "subject": "Khata Balance Jaankari",
+    "body": "Namaste, kripya mera savings account balance bataye for account number 1234567890. Dhanyawad.",
+    "expected_intents": ["ACCOUNT_BALANCE"]
   }
 ]
 
