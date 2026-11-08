@@ -17,7 +17,7 @@ flowchart TD
     Agent2 -->|Intents + Sentiment Urgency| Agent3[3. EntityExtractionAgent]
     Agent3 -->|Extracted Entities| Agent4[4. ValidationAgent]
     
-    subgraph Core Validation Branch
+    subgraph ValidationBranch ["Core Validation Branch"]
         Agent4 --> CheckAcc{Account Valid?}
         Agent4 --> CheckCard{Card Valid?}
     end
@@ -25,7 +25,7 @@ flowchart TD
     CheckAcc -->|Yes/No| Agent5[5. APISelectionAgent - Decision Engine]
     CheckCard -->|Yes/No| Agent5
 
-    subgraph MCP Tool Execution
+    subgraph ToolExec ["MCP Tool Execution"]
         Agent5 --> Plan[Build Execution DAG]
         Plan --> Exec1[Execute Valid Tool 1]
         Plan --> Exec2[Execute Valid Tool 2]
@@ -36,11 +36,11 @@ flowchart TD
     Exec2 --> Agent6
     Skip --> Agent6
 
-    subgraph Security & Governance
-        Agent6 --> Mask[PII / PCI Masker: XXXX7890]
+    subgraph SecurityGovernance ["Security & Governance"]
+        Agent6 --> Mask["PII / PCI Masker: XXXX7890"]
         Mask --> Policy[Enrich via RAG Policy]
         Policy --> HITLCheck{Requires HITL Review?}
-        HITLCheck -->|Urgent Fraud / Risk > 0.8| HITLQueue[Flag to Supervisor Queue: PENDING_APPROVAL]
+        HITLCheck -->|Urgent Fraud / Risk > 0.8| HITLQueue["Flag to Supervisor Queue: PENDING_APPROVAL"]
         HITLCheck -->|Standard Request| AutoApprove[Mark AUTO_APPROVED]
     end
 

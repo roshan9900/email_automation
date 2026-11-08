@@ -40,28 +40,31 @@
 ### 3. Production Readiness & Enterprise Roadmap
 
 ```mermaid
-graph LR
-    subgraph Phase 1 - Current Implementation
-        P1[Agentic AI Pipeline]
-        P2[Mock Core Banking]
-        P3[Local Ollama LLaMA 3]
-        P4[FastAPI MCP Tools]
+flowchart LR
+    subgraph Phase1 ["Phase 1: Current Implementation"]
+        direction TB
+        P1["Agentic AI Pipeline"]
+        P2["Mock Core Banking"]
+        P3["Local Ollama LLaMA 3"]
+        P4["FastAPI MCP Tools"]
     end
 
-    subgraph Phase 2 - Enterprise Integration
-        E1[Live Finacle / Core Banking API]
-        E2[Exchange / O365 Graph Mail Listener]
-        E3[mTLS & OAuth 2.0 Token Exchange]
-        E4[Enterprise Redis / Celery Task Queue]
+    subgraph Phase2 ["Phase 2: Enterprise Integration"]
+        direction TB
+        E1["Live Finacle / Core Banking API"]
+        E2["Exchange / O365 Graph Mail Listener"]
+        E3["mTLS & OAuth 2.0 Token Exchange"]
+        E4["Enterprise Redis / Celery Task Queue"]
     end
 
-    subgraph Phase 3 - Scale & Governance
-        S1[Multi-Region Kubernetes Deployment]
-        S2[Active-Active Disaster Recovery]
-        S3[Continuous Model Fine-Tuning on Banking Corpus]
+    subgraph Phase3 ["Phase 3: Scale & Governance"]
+        direction TB
+        S1["Multi-Region Kubernetes Deployment"]
+        S2["Active-Active Disaster Recovery"]
+        S3["Continuous Model Fine-Tuning"]
     end
 
-    Phase 1 --> Phase 2 --> Phase 3
+    Phase1 --> Phase2 --> Phase3
 ```
 
 - **Core Banking Adapter**: Replace `apis/mock_core_banking.py` with an HTTPS client communicating with HDFC Bank's Enterprise Service Bus (ESB) or API Gateway via mTLS.

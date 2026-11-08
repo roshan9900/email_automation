@@ -16,14 +16,14 @@ The **HDFC Bank Intelligent Email Processing System** resolves this through an *
 graph TD
     User([Customer / Mail Gateway]) -->|Inbound Email + Attachments| Ingest[Email Understanding Agent]
     
-    subgraph Agentic Orchestration Layer
+    subgraph OrchestrationLayer ["Agentic Orchestration Layer"]
         Ingest -->|Clean Body + OCR Stream| IntentSent[Intent & Sentiment Agent]
         IntentSent -->|Intents + Urgency Tag| NER[Entity Extraction Agent]
         NER -->|Account / Card / Dates| Val[Validation Agent]
         
         Val -->|Validation State| Decision[API Decision Engine / Tool Selector]
         
-        subgraph Knowledge & Governance
+        subgraph KnowledgeGovernance ["Knowledge & Governance"]
             Val -.->|Policy Check| RAG[RAG Banking Policy Lookup]
             Val -.->|Risk Flag| HITL[Human-in-the-Loop Review Queue]
         end
@@ -31,7 +31,7 @@ graph TD
         Decision -->|MCP Tool Calls| CBS
     end
     
-    subgraph Core Banking Layer [Mock CBS & MCP Tools]
+    subgraph CoreBankingLayer ["Core Banking Layer (Mock CBS & MCP Tools)"]
         CBS[MCP Tools Router]
         CBS --> API1[ValidateAccountAPI]
         CBS --> API2[ValidateCardAPI]
