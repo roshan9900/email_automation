@@ -1,8 +1,10 @@
 # HDFC Bank - Intelligent Email Processing & Automated Customer Response System with MCP
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![CI](https://github.com/roshan9900/email_automation/actions/workflows/ci.yml/badge.svg)](https://github.com/roshan9900/email_automation/actions/workflows/ci.yml)
 [![Architecture](https://img.shields.io/badge/Architecture-Agentic%20AI%20%2F%20MCP-purple.svg)]()
 [![Compliance](https://img.shields.io/badge/Security-PCI--DSS%20%26%20PII%20Masked-green.svg)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Production-ready implementation of **Task - 1002: Intelligent Email Processing & Automated Customer Response System with MCP** for HDFC Bank.
 
